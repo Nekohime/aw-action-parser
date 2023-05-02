@@ -1,4 +1,5 @@
-import ohm from 'ohm-js';
+// import ohm from 'ohm-js';
+import * as ohm from 'ohm-js';
 
 const GRAMMAR_DEFINITION = `
 ActionString {
@@ -19,6 +20,7 @@ ActionString {
 
   // Command index
   Command   = TextureCommand
+            | AnimateCommand
             | SoundCommand
             | CoronaCommand
             | ColorCommand
@@ -31,8 +33,14 @@ ActionString {
             | ScaleCommand
             | LightCommand
             | NoiseCommand
+            | OpacityCommand
+            | AmbientCommand
+            | DiffuseCommand
+            | SpecularCommand
             | PictureCommand
             | MediaCommand
+            | SayCommand
+            | SeqCommand
             | SignCommand
             | TeleportCommand
             | WarpCommand
@@ -44,6 +52,11 @@ ActionString {
   disabled = "off" | "false" | "no"
   booleanArgument = boolean
   boolean  = enabled | disabled
+
+  // Mask status
+  maskStatus = mask | nomask
+  mask       = "mask"
+  nomask     = "nomask"
 
   // Loop status
   loopStatus = loop | noloop
@@ -96,6 +109,11 @@ ActionString {
 
   tagParameter = namedParameter<"tag", tagName>
   tagName = basicResourceTarget
+
+  // Animate command
+  AnimateCommand = MultiArgumentCommand<caseInsensitive<"animate">, AnimateArgument>
+  AnimateArgument = tagParameter | maskStatus | nameArgument | animateTextureName
+  animateTextureName = basicResourceTarget
 
   // Color command
   ColorCommand  = MultiArgumentCommand<caseInsensitive<"color">, ColorArgument>
@@ -172,13 +190,13 @@ ActionString {
                 | timeParameter
                 | angleParameter
                 | pitchParameter
-  colorParameter      = namedParameter<"color", colorName>
-  lightTypeParameter  = namedParameter<"type", lightType>
-  lightType           = "point" | "spot"
-  brightnessParameter = namedParameter<"brightness", float>
-  radiusParameter     = namedParameter<"radius", float>
-  fxParameter         = namedParameter<"fx", fxType>
-  fxType              = "blink" | "fadein" | "fadeout" | "fire" | "flicker" | "flash" | "pulse"
+  colorParameter      = namedParameter<caseInsensitive<"color">, colorName>
+  lightTypeParameter  = namedParameter<caseInsensitive<"type">, lightType>
+  lightType           = caseInsensitive<"point"> | caseInsensitive<"spot">
+  brightnessParameter = namedParameter<caseInsensitive<"brightness">, float>
+  radiusParameter     = namedParameter<caseInsensitive<"radius">, float>
+  fxParameter         = namedParameter<caseInsensitive<"fx">, fxType>
+  fxType              = caseInsensitive<"blink"> | caseInsensitive<"fadein"> | caseInsensitive<"fadeout"> | caseInsensitive<"fire"> | caseInsensitive<"flicker"> | caseInsensitive<"flash"> | caseInsensitive<"pulse">
   angleParameter      = namedParameter<"angle", float>
   pitchParameter      = namedParameter<"pitch", float>
 
@@ -186,6 +204,24 @@ ActionString {
   NoiseCommand  = MultiArgumentCommand<caseInsensitive<"noise">, NoiseArgument>
   NoiseArgument = overlapStatus | resourceTarget
   overlapStatus = "overlap"
+
+  // Opacity command
+  OpacityCommand = MultiArgumentCommand<caseInsensitive<"opacity">, OpacityArgument>
+  OpacityArgument = opacityValue | tagParameter | nameParameter
+  opacityValue = signedFloat
+
+  // Ambient command
+  AmbientCommand = MultiArgumentCommand<caseInsensitive<"ambient">, AmbientArgument>
+  AmbientArgument = intensityValue | tagParameter | nameParameter
+  intensityValue = signedFloat
+
+  // Diffuse command
+  DiffuseCommand = MultiArgumentCommand<caseInsensitive<"diffuse">, DiffuseArgument>
+  DiffuseArgument = intensityValue | tagParameter | nameParameter
+
+  // Specular command
+  SpecularCommand = MultiArgumentCommand<caseInsensitive<"specular">, SpecularArgument>
+  SpecularArgument = intensityValue | tagParameter | nameParameter // TODO: Add shininessValue, alphaValue
 
   // Picture command
   PictureCommand  = MultiArgumentCommand<caseInsensitive<"picture">, PictureArgument>
@@ -197,10 +233,24 @@ ActionString {
   MediaCommand  = MultiArgumentCommand<caseInsensitive<"media">, MediaArgument>
   MediaArgument = nameParameter | radiusParameter | resourceTarget
 
+  // Say command
+  SayCommand = MultiArgumentCommand<caseInsensitive<"say">, SayArgument>
+  SayArgument = sayText
+  sayText = signQuotedText | signUnquotedText
+  sayStringQuote = "\\""
+  sayUnquotedText = (~";" ~"," ~" " any)+
+  sayQuotedText = sayStringQuote (~sayStringQuote any)* sayStringQuote?
+
+  // Seq command
+  // TODO: [loop OR time=time]
+  SeqCommand  = MultiArgumentCommand<caseInsensitive<"seq">, SeqArgument>
+  SeqArgument = seqName | loopStatus | nameParameter
+  seqName = basicResourceTarget
+
   // Sign command
   SignCommand = MultiArgumentCommand<caseInsensitive<"sign">, SignArgument>
   SignArgument = colorParameter | bcolorParameter | nameParameter | signText
-  bcolorParameter = namedParameter<"bcolor", colorName>
+  bcolorParameter = namedParameter<caseInsensitive<"bcolor">, colorName>
   signText = signQuotedText | signUnquotedText
   signStringQuote = "\\""
   signUnquotedText = (~";" ~"," ~" " any)+
@@ -225,7 +275,7 @@ ActionString {
   // URL command
   URLCommand = MultiArgumentCommand<caseInsensitive<"url">, URLArgument>
   URLArgument = urlTargetParameter | resourceTarget
-  urlTargetParameter = namedParameter<"target", "aw_3d">
+  urlTargetParameter = namedParameter<caseInsensitive<"target">, caseInsensitive<"aw_3d">>
 
   // Warp command
   WarpCommand = caseInsensitive<"warp"> WorldCoordinates
@@ -237,6 +287,8 @@ const UNWANTED_CHARS = /\x80|\x7F/g;
 function cleanActionString(actionString) {
     return actionString.replace(UNWANTED_CHARS, '');
 }
+
+const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
 
 // Scale command properties, see http://wiki.activeworlds.com/index.php?title=Scale
 const SCALE_MIN = 0.2;
@@ -352,10 +404,11 @@ const PRESET_COLORS = {
 const ALLOWED_EMPTY_COMMANDS = ['examine', 'sign'];
 
 function colorStringToRGB(colorString) {
+    colorString = colorString.toLowerCase();
     if (colorString in PRESET_COLORS) {
         return PRESET_COLORS[colorString];
     }
-    const extractedHex = colorString.toLowerCase().match(/(^[a-f0-9]+)/);
+    const extractedHex = colorString.match(/(^[a-f0-9]+)/);
     if (extractedHex) {
         // Get first hexadecimal string match & convert to number
         const colorValue = parseInt(extractedHex[0], 16);
@@ -376,9 +429,15 @@ function colorStringToRGB(colorString) {
     return null;
 }
 
+// TODO: Investigate allowing duplicate commands
+//  (useful for applying to multiple tags)
+
 function mergeActions(actions) {
     let simplifiedData = {};
-    for (const action of actions) {
+    for (let action of actions) {
+        // needed so triggers are case-insensitive
+        action.trigger = action.trigger.toLowerCase();
+
         if (action.trigger && !(action.trigger in simplifiedData)) {
             // Only the first action should be kept
             const mergedCommands = mergeCommands(action.commands);
@@ -398,6 +457,8 @@ function mergeCommands(commands) {
             // Remove invalid commands (usually due to duplicated parameters)
             continue;
         }
+        // needed so commands are case-insensitive
+        command.commandType = command.commandType.toLowerCase();
         if (!ALLOWED_EMPTY_COMMANDS.includes(command.commandType) && Object.keys(command).length == 1) {
             // Remove commands without parameters
             continue;
@@ -448,6 +509,9 @@ class AWActionParser {
             textureName(input) {
                 return ['texture', input.parse()];
             },
+            animateTextureName(input) {
+                return ['texture', input.parse()];
+            },
             basicResourceTarget(input) {
                 return input.children.map(c => c.parse()).join('');
             },
@@ -458,13 +522,13 @@ class AWActionParser {
                 return name.children.map(c => c.children.map(d => d.parse()).join('')).join('');
             },
             nameArgument(name) {
-                return ['targetName', name.children.map(c => c.children.map(d => d.parse()).join('')).join('')];
+                return ['targetName', name.children.map(c => c.children.map(d => d.parse()).join('')).join('').toLowerCase()];
             },
             namedParameter(parameterName, _, value) {
-                return [parameterName.parse(), value.parse()];
+                return [parameterName.parse().toLowerCase(), value.parse()];
             },
             nameParameter(name) {
-                return ['targetName', name.parse()[1]];
+                return ['targetName', name.parse()[1].toLowerCase()];
             },
             boolean(boolean) {
                 const bool = boolean.parse();
@@ -487,8 +551,23 @@ class AWActionParser {
                     return ['color', color.parse()];
                 }
             },
+            fxType(fx) {
+                return fx.parse().toLowerCase();
+            },
             ExamineCommand(_) { // eslint-disable-line no-unused-vars
                 return {commandType: 'examine'};
+            },
+            opacityValue(value) {
+                // Values below 0.0 will get clamped to 0.0,
+                // Values above 1.0 will get clamped to 1.0.
+                const opacity = value.parse();
+                return ['opacity', clamp(opacity, 0.0, 1.0)];
+            },
+            intensityValue(value) {
+                // Values below 0.0 will get clamped to 0.0,
+                // Values above 1.0 will get clamped to 1.0.
+                const intensity = value.parse();
+                return ['intensity', clamp(intensity, 0.0, 1.0)];
             },
             RotateDistances(coordinates) {
                 return ['speed', resolveIncompleteCoordinates(coordinates.children.map(c => c.parse()))];
@@ -544,6 +623,23 @@ class AWActionParser {
                 } else {
                     return -1 * float.parse();
                 }
+            },
+            //, imagecount = 1, framecount = 1,
+            //framedelay = 0,
+            //framelist = []
+            // tagParameter? maskStatus? nameArgument animateTextureName
+            //  tagParameter | maskStatus | nameArgument | animateTextureName
+            AnimateCommand(commandName, tag = 'none', maskStatus = 'nomask',
+                name, animateTextureName,
+            ) {
+                let command = {
+                    commandType: 'animate',
+                };
+                command.tag = tag;
+                command.maskStatus = maskStatus;
+                command.targetName = name;
+                command.texture = animateTextureName;
+                return command;
             },
             TeleportCommand(commandName, worldName, worldCoordinates) {
                 let command = {
@@ -602,6 +698,18 @@ class AWActionParser {
                     return ['reset', false];
                 }
             },
+            sayText(text) {
+                return ['text', text.parse()];
+            },
+            sayQuotedText(_, text, __) { // eslint-disable-line no-unused-vars
+                return text.children.map(c => c.parse()).join('');
+            },
+            sayUnquotedText(text) {
+                return text.children.map(c => c.parse()).join('');
+            },
+            seqName(input) {
+                return ['seq', input.parse()];
+            },
             signText(text) {
                 return ['text', text.parse()];
             },
@@ -623,6 +731,7 @@ class AWActionParser {
     // Return parsed action string
     parse(actionString) {
         const match = this.grammar.match(cleanActionString(actionString));
+
         if (match.succeeded()) {
             return mergeActions(this.semantics(match).parse());
         }
