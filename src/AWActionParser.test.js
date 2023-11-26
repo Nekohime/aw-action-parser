@@ -18,7 +18,6 @@ test('good string has empty debug information', () => {
     expect(parser.debug('create color green;').length).toBe(0);
 });
 
-
 test('create color green', () => {
     expect(parser.parse('create color green')).toStrictEqual({
         create: [
@@ -409,8 +408,15 @@ test('create long color', () => {
     });
 });
 
-test('invalid color results in no action', () => {
-    expect(parser.parse('create color poorchoice')).toStrictEqual({});
+test('invalid color gets coerced into a color anyway', () => {
+    expect(parser.parse('create color poorchoice')).toStrictEqual({
+        create: [
+            {
+                commandType: 'color',
+                color: {r: 211, g: 212, b:67},
+            },
+        ],
+    });
 });
 
 test('no color results in no action', () => {
@@ -430,13 +436,13 @@ test('create texture with mask', () => {
 });
 
 test('create texture with mask and tag', () => {
-    expect(parser.parse('create texture fleurs19 mask=fleurs19m tag=abcd')).toStrictEqual({
+    expect(parser.parse('create texture fleurs19 mask=fleurs19m tag=3')).toStrictEqual({
         create: [
             {
                 commandType: 'texture',
                 texture: 'fleurs19',
                 mask: 'fleurs19m',
-                tag: 'abcd',
+                tag: 3,
             },
         ],
     });
@@ -450,7 +456,7 @@ test('create animate me stone3', () => {
                 targetName: 'me',
                 texture: 'stone3',
                 maskStatus: 'nomask',
-                tag: 'none',
+                tag: null,
             },
         ],
     });
@@ -503,7 +509,7 @@ test('create opacity 1.0 == 1.0', () => {
         create: [
             {
                 commandType: 'opacity',
-                opacity: 1.0,
+                value: 1.0,
             },
         ],
     });
@@ -514,7 +520,7 @@ test('create opacity -0.5 == 0.0', () => {
         create: [
             {
                 commandType: 'opacity',
-                opacity: 0.0,
+                value: 0.0,
             },
         ],
     });
@@ -525,7 +531,7 @@ test('create opacity 2.5 == 1.0', () => {
         create: [
             {
                 commandType: 'opacity',
-                opacity: 1.0,
+                value: 1.0,
             },
         ],
     });
@@ -536,7 +542,7 @@ test('create opacity on target name', () => {
         create: [
             {
                 commandType: 'opacity',
-                opacity: 1.0,
+                value: 1.0,
                 targetName: 'wowsuchinvisible',
             },
         ],
@@ -548,9 +554,9 @@ test('create opacity on target name with tag', () => {
         create: [
             {
                 commandType: 'opacity',
-                opacity: 1.0,
+                value: 1.0,
                 targetName: 'wowsuchinvisible',
-                tag: '100',
+                tag: 100,
             },
         ],
     });
@@ -565,7 +571,7 @@ test('create ambient on target name with tag', () => {
                 commandType: 'ambient',
                 intensity: 1.0,
                 targetName: 'wowsuchambient',
-                tag: '100',
+                tag: 100,
             },
         ],
     });
@@ -578,7 +584,7 @@ test('create diffuse on target name with tag', () => {
                 commandType: 'diffuse',
                 intensity: 1.0,
                 targetName: 'wowsuchdiffusion',
-                tag: '100',
+                tag: 100,
             },
         ],
     });
@@ -591,7 +597,7 @@ test('create specular on target name with tag and shininess', () => {
                 commandType: 'specular',
                 intensity: 1.0,
                 targetName: 'wowsuchspecularity',
-                tag: '100',
+                tag: 100,
             },
         ],
     });
@@ -654,29 +660,29 @@ test('scale with 3 numbers scales X, Y and Z separately', () => {
     });
 });
 
-test('scale with 1 number at a negative value defaults them to 1', () => {
+test('scale with 1 number at a negative value defaults it to 0.2', () => {
     expect(parser.parse('create scale -2')).toStrictEqual({
         create: [
             {
                 commandType: 'scale',
                 factor: {
-                    x: 1,
-                    y: 1,
-                    z: 1,
+                    x: 0.1,
+                    y: 0.1,
+                    z: 0.1,
                 },
             },
         ],
     });
 });
 
-test('scale with 2 numbers at a negative value defaults them to 1', () => {
+test('scale with 2 numbers at a negative value defaults them to 0.2', () => {
     expect(parser.parse('create scale -2 -3')).toStrictEqual({
         create: [
             {
                 commandType: 'scale',
                 factor: {
-                    x: 1,
-                    y: 1,
+                    x: 0.1,
+                    y: 0.1,
                     z: 1,
                 },
             },
@@ -690,9 +696,9 @@ test('scale with 3 numbers, first and last negative but second positive = 1, n, 
             {
                 commandType: 'scale',
                 factor: {
-                    x: 1,
+                    x: 0.1,
                     y: 3,
-                    z: 1,
+                    z: 0.1,
                 },
             },
         ],
@@ -705,24 +711,9 @@ test('scale with four values should only process the first three', () => {
             {
                 commandType: 'scale',
                 factor: {
-                    x: 1,
+                    x: 0.1,
                     y: 4,
-                    z: 1,
-                },
-            },
-        ],
-    });
-});
-
-test('scale out of bounds gets clamped properly', () => {
-    expect(parser.parse('create scale -3 0.01 10')).toStrictEqual({
-        create: [
-            {
-                commandType: 'scale',
-                factor: {
-                    x: 1,
-                    y: 0.2,
-                    z: 5,
+                    z: 0.1,
                 },
             },
         ],

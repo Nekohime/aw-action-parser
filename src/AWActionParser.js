@@ -107,8 +107,9 @@ ActionString {
   maskParameter = namedParameter<"mask", maskName>
   maskName = basicResourceTarget
 
+  // tagParameter = namedParameter<"tag", tagName>
   tagParameter = namedParameter<"tag", tagName>
-  tagName = basicResourceTarget
+  tagName = positiveInteger
 
   // Animate command
   AnimateCommand = MultiArgumentCommand<caseInsensitive<"animate">, AnimateArgument>
@@ -288,18 +289,8 @@ function cleanActionString(actionString) {
     return actionString.replace(UNWANTED_CHARS, '');
 }
 
+const clampScale = (value, minimum) => Math.max(value, 0.1);
 const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
-
-// Scale command properties, see http://wiki.activeworlds.com/index.php?title=Scale
-const SCALE_MIN = 0.2;
-const SCALE_MAX = 5;
-function clampScale(value) {
-    if (value > 0) {
-        return Math.max(Math.min(value, SCALE_MAX), SCALE_MIN);
-    } else {
-        return 1;
-    }
-}
 
 function resolveCommand(commandName, commandArguments) {
     let command = {
@@ -333,16 +324,14 @@ function resolveIncompleteCoordinates(coordinates) {
 }
 
 function resolveIncompleteScaleCoordinates(coordinates) {
-    let [x, y, z] = coordinates.map(clampScale, coordinates);
+    let [x, y, z] = coordinates.map(value => clampScale(value));
 
     if (coordinates.length === 1) {
-        return {x: x, y: x, z: x};
+        return { x, y: x, z: x };
     } else if (coordinates.length === 2) {
-        return {x, y, z: 1};
-    } else if (coordinates.length === 3) {
-        return {x, y, z};
+        return { x, y, z: 1 };
     } else {
-        return {x, y, z};
+        return { x, y, z };
     }
 }
 
@@ -357,6 +346,8 @@ function toSignedFloat(sign, float) {
 // Should be 18446744073709551615 but JavaScript doesn't go that high
 const ULLONG_MAX = 18446744073709552000;
 
+const ALLOWED_EMPTY_COMMANDS = ['examine', 'sign'];
+
 function rgb(red, green, blue) {
     // Clamp values just in case
     return {
@@ -366,7 +357,7 @@ function rgb(red, green, blue) {
     };
 }
 
-const PRESET_COLORS = {
+export const AW_PRESET_COLORS = {
     aquamarine:  rgb(112, 219, 147),
     black:       rgb(  0,   0,   0),
     blue:        rgb(  0,   0, 255),
@@ -401,37 +392,207 @@ const PRESET_COLORS = {
     yellow:      rgb(255, 255,   0),
 };
 
-const ALLOWED_EMPTY_COMMANDS = ['examine', 'sign'];
+export const WEB_PRESET_COLORS = {
+    aliceblue: rgb(240, 248, 255),
+    antiquewhite: rgb(250, 235, 215),
+    aqua: rgb(0, 255, 255),
+    aquamarine: rgb(127, 255, 212),
+    azure: rgb(240, 255, 255),
+    beige: rgb(245, 245, 220),
+    bisque: rgb(255, 228, 196),
+    black: rgb(0, 0, 0),
+    blanchedalmond: rgb(255, 235, 205),
+    blue: rgb(0, 0, 255),
+    blueviolet: rgb(138, 43, 226),
+    brown: rgb(165, 42, 42),
+    burlywood: rgb(222, 184, 135),
+    cadetblue: rgb(95, 158, 160),
+    chartreuse: rgb(127, 255, 0),
+    chocolate: rgb(210, 105, 30),
+    coral: rgb(255, 127, 80),
+    cornflowerblue: rgb(100, 149, 237),
+    cornsilk: rgb(255, 248, 220),
+    crimson: rgb(220, 20, 60),
+    cyan: rgb(0, 255, 255),
+    darkblue: rgb(0, 0, 139),
+    darkcyan: rgb(0, 139, 139),
+    darkgoldenrod: rgb(184, 134, 11),
+    darkgray: rgb(169, 169, 169),
+    darkgreen: rgb(0, 100, 0),
+    darkgrey: rgb(169, 169, 169),
+    darkkhaki: rgb(189, 183, 107),
+    darkmagenta: rgb(139, 0, 139),
+    darkolivegreen: rgb(85, 107, 47),
+    darkorange: rgb(255, 140, 0),
+    darkorchid: rgb(153, 50, 204),
+    darkred: rgb(139, 0, 0),
+    darksalmon: rgb(233, 150, 122),
+    darkseagreen: rgb(143, 188, 143),
+    darkslateblue: rgb(72, 61, 139),
+    darkslategray: rgb(47, 79, 79),
+    darkslategrey: rgb(47, 79, 79),
+    darkturquoise: rgb(0, 206, 209),
+    darkviolet: rgb(148, 0, 211),
+    deeppink: rgb(255, 20, 147),
+    deepskyblue: rgb(0, 191, 255),
+    dimgray: rgb(105, 105, 105),
+    dimgrey: rgb(105, 105, 105),
+    dodgerblue: rgb(30, 144, 255),
+    firebrick: rgb(178, 34, 34),
+    floralwhite: rgb(255, 250, 240),
+    forestgreen: rgb(34, 139, 34),
+    fuchsia: rgb(255, 0, 255),
+    gainsboro: rgb(220, 220, 220),
+    ghostwhite: rgb(248, 248, 255),
+    gold: rgb(255, 215, 0),
+    goldenrod: rgb(218, 165, 32),
+    gray: rgb(128, 128, 128),
+    green: rgb(0, 128, 0),
+    greenyellow: rgb(173, 255, 47),
+    grey: rgb(128, 128, 128),
+    honeydew: rgb(240, 255, 240),
+    hotpink: rgb(255, 105, 180),
+    indianred: rgb(205, 92, 92),
+    indigo: rgb(75, 0, 130),
+    ivory: rgb(255, 255, 240),
+    khaki: rgb(240, 230, 140),
+    lavender: rgb(230, 230, 250),
+    lavenderblush: rgb(255, 240, 245),
+    lawngreen: rgb(124, 252, 0),
+    lemonchiffon: rgb(255, 250, 205),
+    lightblue: rgb(173, 216, 230),
+    lightcoral: rgb(240, 128, 128),
+    lightcyan: rgb(224, 255, 255),
+    lightgoldenrodyellow: rgb(250, 250, 210),
+    lightgray: rgb(211, 211, 211),
+    lightgreen: rgb(144, 238, 144),
+    lightgrey: rgb(211, 211, 211),
+    lightpink: rgb(255, 182, 193),
+    lightsalmon: rgb(255, 160, 122),
+    lightseagreen: rgb(32, 178, 170),
+    lightskyblue: rgb(135, 206, 250),
+    lightslategray: rgb(119, 136, 153),
+    lightslategrey: rgb(119, 136, 153),
+    lightsteelblue: rgb(176, 196, 222),
+    lightyellow: rgb(255, 255, 224),
+    lime: rgb(0, 255, 0),
+    limegreen: rgb(50, 205, 50),
+    linen: rgb(250, 240, 230),
+    magenta: rgb(255, 0, 255),
+    maroon: rgb(128, 0, 0),
+    mediumaquamarine: rgb(102, 205, 170),
+    mediumblue: rgb(0, 0, 205),
+    mediumorchid: rgb(186, 85, 211),
+    mediumpurple: rgb(147, 112, 219),
+    mediumseagreen: rgb(60, 179, 113),
+    mediumslateblue: rgb(123, 104, 238),
+    mediumspringgreen: rgb(0, 250, 154),
+    mediumturquoise: rgb(72, 209, 204),
+    mediumvioletred: rgb(199, 21, 133),
+    midnightblue: rgb(25, 25, 112),
+    mintcream: rgb(245, 255, 250),
+    mistyrose: rgb(255, 228, 225),
+    moccasin: rgb(255, 228, 181),
+    navajowhite: rgb(255, 222, 173),
+    navy: rgb(0, 0, 128),
+    oldlace: rgb(253, 245, 230),
+    olive: rgb(128, 128, 0),
+    olivedrab: rgb(107, 142, 35),
+    orange: rgb(255, 165, 0),
+    orangered: rgb(255, 69, 0),
+    orchid: rgb(218, 112, 214),
+    palegoldenrod: rgb(238, 232, 170),
+    palegreen: rgb(152, 251, 152),
+    paleturquoise: rgb(175, 238, 238),
+    palevioletred: rgb(219, 112, 147),
+    papayawhip: rgb(255, 239, 213),
+    peachpuff: rgb(255, 218, 185),
+    peru: rgb(205, 133, 63),
+    pink: rgb(255, 192, 203),
+    plum: rgb(221, 160, 221),
+    powderblue: rgb(176, 224, 230),
+    purple: rgb(128, 0, 128),
+    rebeccapurple: rgb(102, 51, 153),
+    red: rgb(255, 0, 0),
+    rosybrown: rgb(188, 143, 143),
+    royalblue: rgb(65, 105, 225),
+    saddlebrown: rgb(139, 69, 19),
+    salmon: rgb(250, 128, 114),
+    sandybrown: rgb(244, 164, 96),
+    seagreen: rgb(46, 139, 87),
+    seashell: rgb(255, 245, 238),
+    sienna: rgb(160, 82, 45),
+    silver: rgb(192, 192, 192),
+    skyblue: rgb(135, 206, 235),
+    slateblue: rgb(106, 90, 205),
+    slategray: rgb(112, 128, 144),
+    slategrey: rgb(112, 128, 144),
+    snow: rgb(255, 250, 250),
+    springgreen: rgb(0, 255, 127),
+    steelblue: rgb(70, 130, 180),
+    tan: rgb(210, 180, 140),
+    teal: rgb(0, 128, 128),
+    thistle: rgb(216, 191, 216),
+    tomato: rgb(255, 99, 71),
+    turquoise: rgb(64, 224, 208),
+    violet: rgb(238, 130, 238),
+    wheat: rgb(245, 222, 179),
+    white: rgb(255, 255, 255),
+    whitesmoke: rgb(245, 245, 245),
+    yellow: rgb(255, 255, 0),
+    yellowgreen: rgb(154, 205, 50),
+};
+
+function forceStringToRGB(str) {
+    if (!str) return null;
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
+    return { r: (hash & 0xFF0000) >> 16, g: (hash & 0x00FF00) >> 8, b: hash & 0x0000FF };
+}
 
 function colorStringToRGB(colorString) {
+    // Convert color string to lowercase for case-insensitivity
     colorString = colorString.toLowerCase();
-    if (colorString in PRESET_COLORS) {
-        return PRESET_COLORS[colorString];
+
+    // Check if it's a preset color
+    const presetColors = AW_PRESET_COLORS;
+
+    if (colorString in presetColors) {
+        return presetColors[colorString];
     }
+
+
+    // Check for hexadecimal color string
     const extractedHex = colorString.match(/(^[a-f0-9]+)/);
     if (extractedHex) {
         // Get first hexadecimal string match & convert to number
         const colorValue = parseInt(extractedHex[0], 16);
+
+        // Handle overflow case
         if (colorValue > ULLONG_MAX) {
             // AW considers everything white at this point
-            return rgb(255, 255, 255);
+            return rgb(255, 255, 255); // Assuming rgb is defined elsewhere
         } else {
-            const red   = (colorValue >> 16) % 256;
-            const green = (colorValue >>  8) % 256;
-            const blue  = (colorValue >>  0) % 256;
+            // Extract RGB values
+            const red = (colorValue >> 16) % 256;
+            const green = (colorValue >> 8) % 256;
+            const blue = (colorValue >> 0) % 256;
+
+            // Ensure RGB values are within the valid range
             return rgb(
-                red   < 0 ? red   + 256 : red,
+                red < 0 ? red + 256 : red,
                 green < 0 ? green + 256 : green,
-                blue  < 0 ? blue  + 256 : blue,
+                blue < 0 ? blue + 256 : blue,
             );
         }
     }
-    return null;
+
+    // Fallback to stringToHexColor if the color is not recognized
+    return forceStringToRGB(colorString);
 }
 
 // TODO: Investigate allowing duplicate commands
 //  (useful for applying to multiple tags)
-
 function mergeActions(actions) {
     let simplifiedData = {};
     for (let action of actions) {
@@ -479,7 +640,6 @@ class AWActionParser {
 
     constructor() {
         this.grammar = ohm.grammar(GRAMMAR_DEFINITION);
-
         this.semantics = this.grammar.createSemantics();
         this.semantics.addOperation('parse', {
             Actions(actions, _) { // eslint-disable-line no-unused-vars
@@ -561,7 +721,7 @@ class AWActionParser {
                 // Values below 0.0 will get clamped to 0.0,
                 // Values above 1.0 will get clamped to 1.0.
                 const opacity = value.parse();
-                return ['opacity', clamp(opacity, 0.0, 1.0)];
+                return ['value', clamp(opacity, 0.0, 1.0)];
             },
             intensityValue(value) {
                 // Values below 0.0 will get clamped to 0.0,
@@ -727,7 +887,6 @@ class AWActionParser {
             },
         });
     }
-
     // Return parsed action string
     parse(actionString) {
         const match = this.grammar.match(cleanActionString(actionString));
