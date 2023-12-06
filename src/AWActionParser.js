@@ -595,6 +595,7 @@ function colorStringToRGB(colorString) {
 //  (useful for applying to multiple tags)
 function mergeActions(actions) {
     let simplifiedData = {};
+    //console.dir(actions, {depth: null})
     for (let action of actions) {
         // needed so triggers are case-insensitive
         action.trigger = action.trigger.toLowerCase();
@@ -602,39 +603,43 @@ function mergeActions(actions) {
         if (action.trigger && !(action.trigger in simplifiedData)) {
             // Only the first action should be kept
             const mergedCommands = mergeCommands(action.commands);
+            console.log(mergedCommands)
             if (mergedCommands.length > 0) {
                 // Only add action if there are commands inside
                 simplifiedData[action.trigger] = mergedCommands;
             }
         }
+
+
+
     }
+
     return simplifiedData;
 }
 
 function mergeCommands(commands) {
-    let mergedCommands = new Map();
+    let allCommands = [];
+
     for (const command of commands) {
         if (command === null) {
             // Remove invalid commands (usually due to duplicated parameters)
             continue;
         }
+
         // needed so commands are case-insensitive
         command.commandType = command.commandType.toLowerCase();
+
         if (!ALLOWED_EMPTY_COMMANDS.includes(command.commandType) && Object.keys(command).length == 1) {
             // Remove commands without parameters
             continue;
         }
-        if (command.commandType == 'name') {
-            // Keep last name command only
-            mergedCommands.set(command.commandType, command);
-        } else {
-            // Only keep 1 per targetName (including no targetName)
-            const commandKey = command.commandType + ('targetName' in command ? command.targetName : '');
-            mergedCommands.set(commandKey, command);
-        }
+
+        allCommands.push(command);
     }
-    return Array.from(mergedCommands.values());
+
+    return allCommands;
 }
+
 
 class AWActionParser {
 
