@@ -2,6 +2,20 @@ import { AWActionParser } from './AWActionParser';
 
 const parser = new AWActionParser();
 
+test('texture url', () => {
+    //mask=https://nekohime.net/images/3d/filmstrips/film1.jpg'
+    expect(parser.parse('create texture rail1 mask=https://nekohime.net/images/3d/filmstrips/film1.jpg')).toStrictEqual({
+        create: [
+            {
+                commandType: 'texture',
+                resource: 'rail1',
+                mask: 'https://nekohime.net/images/3d/filmstrips/film1.jpg',
+
+            },
+        ],
+    });
+});
+
 test('empty string', () => {
     expect(parser.parse('')).toStrictEqual({});
 });
@@ -428,7 +442,7 @@ test('create texture with mask', () => {
         create: [
             {
                 commandType: 'texture',
-                texture: 'fleurs19',
+                resource: 'fleurs19',
                 mask: 'fleurs19m',
             },
         ],
@@ -440,14 +454,16 @@ test('create texture with mask and tag', () => {
         create: [
             {
                 commandType: 'texture',
-                texture: 'fleurs19',
+                resource: 'fleurs19',
                 mask: 'fleurs19m',
                 tag: 3,
             },
         ],
     });
 });
+
 /*
+WIP
 test('create animate me stone3', () => {
     expect(parser.parse('create animate me stone3')).toStrictEqual({
         create: [
@@ -456,12 +472,13 @@ test('create animate me stone3', () => {
                 targetName: 'me',
                 texture: 'stone3',
                 maskStatus: 'nomask',
-                tag: null,
+                tag: "none",
             },
         ],
     });
 });
 */
+
 test('create rotate & move with reset', () => {
     expect(parser.parse('create rotate 0 0 0 reset, move 0 0 2 loop reset time=5 wait=1')).toStrictEqual({
         create: [

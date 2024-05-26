@@ -73,13 +73,20 @@ ActionString {
   reset       = "reset"
   noreset     = "noreset"
 
-  // Resource target
+  // Resource target (textures, pictures, sounds, media, etc)
+  // example: https://example.com/stone3.jpg
   resourceTarget = (alnum | "." | "/" | ":" | "_" | "-" | "+" | "%" | "?" | "=" | "[" | "]" | "&" | "~" | "!" | "@" | "*" | "(" | ")")+
-  // Basic resource target for textures, masks etc
+
+  // Simple Basic resource target for textures, masks etc
+  // example: stone3.jpg
   basicResourceTarget = (alnum | "." | "_" | "-")+
 
   // Command parameter (e.g. name=foo, tag=bar)
   namedParameter<paramName, paramSyntax> = paramName "=" paramSyntax
+
+  // Command parameter syntax for parameters that can have a URL as a value
+  //  (mask=https://...)
+  namedURLParameter<paramName, paramSyntax> = paramName "=" paramSyntax
 
   // Name parameter
   nameParameter = namedParameter<"name", objectName>
@@ -101,11 +108,10 @@ ActionString {
 
   // Texture command
   TextureCommand = MultiArgumentCommand<caseInsensitive<"texture">, TextureArgument>
-  TextureArgument = maskParameter | tagParameter | nameParameter | textureName
-  textureName = basicResourceTarget
+  TextureArgument = maskParameter | tagParameter | nameParameter | resourceTarget
 
-  maskParameter = namedParameter<"mask", maskName>
-  maskName = basicResourceTarget
+  maskParameter = namedURLParameter<caseInsensitive<"mask">, maskName>
+  maskName = resourceTarget
 
   // tagParameter = namedParameter<"tag", tagName>
   tagParameter = namedParameter<"tag", tagName>
@@ -289,7 +295,7 @@ function cleanActionString(actionString) {
     return actionString.replace(UNWANTED_CHARS, '');
 }
 
-const clampScale = (value, minimum) => Math.max(value, 0.1);
+const clampScale = (value, min = 0.1) => Math.max(value, min);
 const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
 
 function resolveCommand(commandName, commandArguments) {
@@ -666,9 +672,6 @@ class AWActionParser {
             float(floatType) {
                 return floatType.parse();
             },
-            textureName(input) {
-                return ['texture', input.parse()];
-            },
             animateTextureName(input) {
                 return ['texture', input.parse()];
             },
@@ -678,6 +681,11 @@ class AWActionParser {
             resourceTarget(input) {
                 return ['resource', input.children.map(c => c.parse()).join('')];
             },
+            maskName(input) {
+                return input.children
+                    .map(c => c.children.map(d => d.parse()).join(''))
+                    .join('');
+            },
             objectName(name) {
                 return name.children.map(c => c.children.map(d => d.parse()).join('')).join('');
             },
@@ -686,6 +694,9 @@ class AWActionParser {
             },
             namedParameter(parameterName, _, value) {
                 return [parameterName.parse().toLowerCase(), value.parse()];
+            },
+            namedURLParameter(parameterName, _, value) {
+                return [parameterName.parse(), value.sourceString];
             },
             nameParameter(name) {
                 return ['targetName', name.parse()[1].toLowerCase()];
